@@ -27,7 +27,7 @@ fn main() {
             tick_counter = 0;
             cpu.decrement_counters();
         }
-        //audio_subsystem.beep(cpu.get_beep());
+        audio_subsystem.beep(cpu.get_beep());
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} => {
