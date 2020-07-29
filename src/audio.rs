@@ -1,7 +1,12 @@
 extern crate sdl2;
 use sdl2::audio::{AudioCallback, AudioSpecDesired};
 
-struct SquareWave {
+pub enum AudioState {
+    On,
+    Off,
+}
+
+pub struct SquareWave {
     phase_inc: f32,
     phase: f32,
     volume: f32,
@@ -22,7 +27,8 @@ impl AudioCallback for SquareWave {
 }
 
 pub struct Audio {
-    device: sdl2::audio::AudioDevice<SquareWave>,
+    pub device: sdl2::audio::AudioDevice<SquareWave>,
+    pub state: AudioState,
 }
 
 impl Audio {
@@ -40,17 +46,16 @@ impl Audio {
                 volume: 2.0,
             }
         }).unwrap();
-        let audio = Audio {
+        return Audio {
             device: device,
+            state: AudioState::On,
         };
-        return audio;
     }
 
-    pub fn beep(&mut self, on: bool) {
-        if on {
-            self.device.resume();
-        } else {
-            self.device.pause();
+    pub fn beep(&mut self, state: AudioState) {
+        match state {
+            AudioState::On => self.device.resume(),
+            AudioState::Off => self.device.pause(),
         }
     }
 }

@@ -37,7 +37,10 @@ impl Screen {
             build().
             map_err(|e| e.to_string()).unwrap();
         canvas.set_draw_color(COLOR_ON);
-        let mut screen = Screen { pixels: [false; NUM_PIXELS], canvas: canvas, };
+        let mut screen = Screen {
+            pixels: [false; NUM_PIXELS],
+            canvas: canvas,
+        };
         screen.clear_screen();
         return screen;
     }

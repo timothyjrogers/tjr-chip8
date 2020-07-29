@@ -1,28 +1,55 @@
 #[path = "screen.rs"]
 mod screen;
+#[path = "audio.rs"]
+mod audio;
+#[path = "keypad.rs"]
+mod keypad;
 extern crate sdl2;
 use rand::Rng;
 
+const FONT_DATA: [u8; 80] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+];
+
+pub enum CpuStatus {
+    Running,
+    Halted,
+    WaitForKey,
+}
+
 pub struct Cpu {
-    mem: [u8; 4096],
-    regs: [u8; 16],
-    pc: u16,
-    idx: u16,
-    stack: [u16; 16],
-    sp: i8,
-    sound: u8,
-    delay: u8,
-    screen: screen::Screen,
-    keypad: [bool; 16],
-    wait_key: bool,
-    key_reg: usize,
-    beep: bool,
-    running: bool,
+    pub mem: [u8; 4096],
+    pub regs: [u8; 16],
+    pub pc: u16,
+    pub idx: u16,
+    pub stack: [u16; 16],
+    pub sp: i8,
+    pub sound: u8,
+    pub delay: u8,
+    pub screen: screen::Screen,
+    pub audio: audio::Audio,
+    pub keypad: keypad::Keypad,
+    pub beep: bool,
+    pub status: CpuStatus,
 }
 
 impl Cpu {
-    pub fn new(ctx: &sdl2::Sdl) -> Cpu {
-        let screen = screen::Screen::new(ctx);
+    pub fn new(ctx: &sdl2::Sdl, fname: &String) -> Cpu {
         let mut cpu = Cpu {
             mem: [0; 4096],
             regs: [0; 16],
@@ -32,43 +59,24 @@ impl Cpu {
             sp: -1,
             sound: 0,
             delay: 0,
-            screen: screen,
-            keypad: [false; 16],
-            wait_key: false,
-            key_reg: 0,
+            screen: screen::Screen::new(ctx),
+            audio: audio::Audio::new(ctx),
+            keypad: keypad::Keypad::new(),
             beep: false,
-            running: true,
+            status: CpuStatus::Running,
         };
-        cpu.sound = 50;
+        for number in 0..80 {
+            cpu.mem[number] = FONT_DATA[number];
+        }
+        let rom = std::fs::read(fname).unwrap();
+        for (pos, e) in rom.iter().enumerate() {
+            cpu.mem[cpu.pc as usize + pos] = *e;
+        }
         return cpu;
     }
 
-    pub fn running(&self) -> bool {
-        return self.running;
-    }
-
     pub fn halt(&mut self) {
-        self.running = false;
-    }
-
-    pub fn set_keypad(&mut self, num: usize, val: bool) {
-        self.keypad[num] = val;
-    }
-
-    pub fn is_waiting(&self) -> bool {
-        return self.wait_key;
-    }
-
-    pub fn set_waiting(&mut self, val: bool) {
-        self.wait_key = val;
-    }
-
-    pub fn set_reg(&mut self, x: usize, val: u8) {
-        self.regs[x] = val;
-    }
-
-    pub fn get_key_reg(&mut self) -> usize {
-        return self.key_reg;
+        self.status = CpuStatus::Halted;
     }
 
     pub fn decrement_counters(&mut self) {
@@ -83,43 +91,15 @@ impl Cpu {
         }
     }
 
-    pub fn get_beep(&self) -> bool{
-        return self.beep;
-    }
-
-    pub fn load_font(&mut self) {
-        let font_data: [u8; 80] = [
-            0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-            0x20, 0x60, 0x20, 0x20, 0x70, // 1
-            0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-            0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-            0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-            0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-            0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-            0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-            0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-            0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-            0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-            0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-            0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-            0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-            0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-            0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-        ];
-        for number in 0..80 {
-            self.mem[number] = font_data[number];
+    pub fn tick(&mut self, kb_state: sdl2::keyboard::KeyboardState) {
+        //Set audio device based on sound timer
+        if self.sound > 0 {
+            self.audio.beep(audio::AudioState::On);
+        } else {
+            self.audio.beep(audio::AudioState::Off);
         }
-    }
-
-    pub fn load_rom(&mut self, fname: &str) {
-        let rom = std::fs::read(fname).unwrap();
-        let mem_start = 0x200;
-        for (pos, e) in rom.iter().enumerate() {
-            self.mem[mem_start + pos] = *e;
-        }
-    }
-
-    pub fn tick(&mut self) {
+        //Process keyboard input
+        self.keypad.update_pressed_keys(kb_state);
         //fetch
         let instruction = Self::fetch(self);
         //decode
@@ -325,11 +305,11 @@ impl Cpu {
     fn category_e(&mut self, x: u8, n: u8) {
         let xval = self.regs[x as usize];
         if n == 0xE {
-            if self.keypad[xval as usize] {
+            if self.keypad.keys[xval as usize] {
                 self.pc = self.pc + 2;
             }
         } else if n == 1 {
-            if !self.keypad[xval as usize] {
+            if !self.keypad.keys[xval as usize] {
                 self.pc = self.pc + 2;
             }
         }
@@ -349,8 +329,20 @@ impl Cpu {
             let addn: (u16, bool) = self.idx.overflowing_add(self.regs[x as usize] as u16);
             self.idx = addn.0;
         } else if nn == 0x0A {
-            self.wait_key = true;
-            self.key_reg = x as usize;
+            match self.status {
+                CpuStatus::Running => {
+                    self.status = CpuStatus::WaitForKey;
+                    self.pc = self.pc - 2;
+                    return;
+                },
+                _ => ()
+            }
+            if self.keypad.key_pressed {
+                self.regs[x as usize] = self.keypad.latest_key;
+                self.status = CpuStatus::Running;
+            } else {
+                self.pc = self.pc - 2;
+            }
         } else if nn == 0x29 {
             self.idx = (self.regs[x as usize] as u16) * 5;
         } else if nn == 0x33 {
