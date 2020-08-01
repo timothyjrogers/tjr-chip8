@@ -6,7 +6,9 @@ mod audio;
 mod keypad;
 extern crate sdl2;
 use rand::Rng;
+use std::time::Instant;
 
+const MICROS_60_HZ: u128 = 16666;
 const FONT_DATA: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -41,6 +43,7 @@ pub struct Cpu {
     pub sp: i8,
     pub sound: u8,
     pub delay: u8,
+    pub timer_time: Instant,
     pub screen: screen::Screen,
     pub audio: audio::Audio,
     pub keypad: keypad::Keypad,
@@ -59,6 +62,7 @@ impl Cpu {
             sp: -1,
             sound: 0,
             delay: 0,
+            timer_time: Instant::now(),
             screen: screen::Screen::new(ctx),
             audio: audio::Audio::new(ctx),
             keypad: keypad::Keypad::new(),
@@ -92,6 +96,11 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, kb_state: sdl2::keyboard::KeyboardState) {
+        let now = Instant::now();
+        if now.duration_since(self.timer_time).as_micros() >= MICROS_60_HZ {
+            self.timer_time = now;
+            self.decrement_counters();
+        }
         //Set audio device based on sound timer
         if self.sound > 0 {
             self.audio.beep(audio::AudioState::On);
