@@ -114,38 +114,26 @@ impl Cpu {
         //decode
         let (category, x, y, n, nn, nnn) = Self::decode(self, instruction);
         //execute
-        if category == 0x0 {
-            Self::category_0(self, n);
-        } else if category == 0x1 {
-            Self::category_1(self, nnn);
-        } else if category == 0x2 {
-            Self::category_2(self, nnn);
-        } else if category == 0x3 {
-            Self::category_3(self, x, nn);
-        } else if category == 0x4 {
-            Self::category_4(self, x, nn);
-        }  else if category == 0x5 {
-            Self::category_5(self, x, y);
-        } else if category == 0x6 {
-            Self::category_6(self, x, nn);
-        } else if category == 0x7 {
-            Self::category_7(self, x, nn);
-        } else if category == 0x8 {
-            Self::category_8(self, x, y, n);
-        } else if category == 0x9 {
-            Self::category_9(self, x, y);
-        } else if category == 0xA {
-            Self::category_a(self, nnn);
-        } else if category == 0xB {
-            Self::category_b(self, nnn);
-        } else if category == 0xC {
-            Self::category_c(self, x, nn);
-        } else if category == 0xD {
-            Self::category_d(self, x, y, n);
-        } else if category == 0xE {
-            Self::category_e(self, x, n);
-        } else if category == 0xF {
-            Self::category_f(self, x, nn);
+        match category {
+            0x0 => Self::category_0(self, n),
+            0x1 => Self::category_1(self, nnn),
+            0x2 => Self::category_2(self, nnn),
+            0x3 => Self::category_3(self, x, nn),
+            0x4 => Self::category_4(self, x, nn),
+            0x5 => Self::category_5(self, x, y),
+            0x6 => Self::category_6(self, x, nn),
+            0x7 => Self::category_7(self, x, nn),
+            0x8 => Self::category_8(self, x, y, n),
+            0x9 => Self::category_9(self, x, y),
+            0xA => Self::category_a(self, nnn),
+            0xB => Self::category_b(self, nnn),
+            0xC => Self::category_c(self, x, nn),
+            0xD => Self::category_d(self, x, y, n),
+            0xE => Self::category_e(self, x, n),
+            0xF => Self::category_f(self, x, nn),
+            _ => {
+                panic!("Unknown opcode, panicking.");
+            }
         }
     }
 
