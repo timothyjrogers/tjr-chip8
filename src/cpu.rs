@@ -157,11 +157,13 @@ impl Cpu {
     }
 
     fn category_0(&mut self, n: u8) {
-        if n == 0 {
-            self.screen.clear_screen();
-        } else if n == 0xE {
-            self.pc = self.stack[self.sp as usize];
-            self.sp = self.sp - 1;
+        match n {
+            0x0 => self.screen.clear_screen(),
+            0xE => {
+                self.pc = self.stack[self.sp as usize];
+                self.sp = self.sp - 1;
+            },
+            _ => panic!("Unsupported opcode.")
         }
     }
 
@@ -207,48 +209,51 @@ impl Cpu {
     }
 
     fn category_8(&mut self, x: u8, y: u8, n: u8) {
-        if n == 0 {
-            self.regs[x as usize] = self.regs[y as usize];
-        } else if n == 1 {
-            self.regs[x as usize] = self.regs[x as usize] | self.regs[y as usize];
-        } else if n == 2 {
-            self.regs[x as usize] = self.regs[x as usize] & self.regs[y as usize];
-        } else if n == 3 {
-            self.regs[x as usize] = self.regs[x as usize] ^ self.regs[y as usize];
-        } else if n == 4 {
-            let addn: (u8, bool) = self.regs[x as usize].overflowing_add(self.regs[y as usize]);
-            self.regs[x as usize] = addn.0;
-            if addn.1 {
-                self.regs[0xF] = 1;
-            } else {
-                self.regs[0xF] = 0;
-            }
-        } else if n == 5 {
-            let xval = self.regs[x as usize];
-            let yval = self.regs[y as usize];
-            if xval > yval {
-                self.regs[0xF] = 1;
-                self.regs[x as usize] = xval -  yval;
-            } else {
-                self.regs[0xF] = 0;
-                self.regs[x as usize] = xval.wrapping_sub(yval);
-            }
-        } else if n == 6 {
-            self.regs[0xF] = (self.regs[x as usize] & 0x1) as u8;
-            self.regs[x as usize] = self.regs[x as usize] >> 1;
-        } else if n == 7 {
-            let xval = self.regs[x as usize];
-            let yval = self.regs[y as usize];
-            if yval > xval {
-                self.regs[0xF] = 1;
-                self.regs[x as usize] = yval - xval;
-            } else {
-                self.regs[0xF] = 0;
-                self.regs[x as usize] = yval.wrapping_sub(xval);
-            }
-        } else if n == 0xE {
-            self.regs[0xF] = ((self.regs[x as usize] & 0xA0) >> 7) as u8;
-            self.regs[x as usize] = self.regs[x as usize] << 1;
+        match n {
+            0x0 => self.regs[x as usize] = self.regs[y as usize],
+            0x1 => self.regs[x as usize] = self.regs[x as usize] | self.regs[y as usize],
+            0x2 => self.regs[x as usize] = self.regs[x as usize] & self.regs[y as usize],
+            0x3 => self.regs[x as usize] = self.regs[x as usize] ^ self.regs[y as usize],
+            0x4 => {
+                let addn: (u8, bool) = self.regs[x as usize].overflowing_add(self.regs[y as usize]);
+                self.regs[x as usize] = addn.0;
+                if addn.1 {
+                    self.regs[0xF] = 1;
+                } else {
+                    self.regs[0xF] = 0;
+                }
+            },
+            0x5 => {
+                let xval = self.regs[x as usize];
+                let yval = self.regs[y as usize];
+                if xval > yval {
+                    self.regs[0xF] = 1;
+                    self.regs[x as usize] = xval - yval;
+                } else {
+                    self.regs[0xF] = 0;
+                    self.regs[x as usize] = xval.wrapping_sub(yval);
+                }
+            },
+            0x6 => {
+                self.regs[0xF] = (self.regs[x as usize] & 0x1) as u8;
+                self.regs[x as usize] = self.regs[x as usize] >> 1;
+            },
+            0x7 => {
+                let xval = self.regs[x as usize];
+                let yval = self.regs[y as usize];
+                if yval > xval {
+                    self.regs[0xF] = 1;
+                    self.regs[x as usize] = yval - xval;
+                } else {
+                    self.regs[0xF] = 0;
+                    self.regs[x as usize] = yval.wrapping_sub(xval);
+                }
+            },
+            0xE => {
+                self.regs[0xF] = ((self.regs[x as usize] & 0xA0) >> 7) as u8;
+                self.regs[x as usize] = self.regs[x as usize] << 1;
+            },
+            _ => panic!("Unsupported op code")
         }
     }
 
@@ -301,63 +306,72 @@ impl Cpu {
 
     fn category_e(&mut self, x: u8, n: u8) {
         let xval = self.regs[x as usize];
-        if n == 0xE {
-            if self.keypad.keys[xval as usize] {
-                self.pc = self.pc + 2;
-            }
-        } else if n == 1 {
-            if !self.keypad.keys[xval as usize] {
-                self.pc = self.pc + 2;
-            }
+        match n {
+            0x1 => {
+                if !self.keypad.keys[xval as usize] {
+                    self.pc = self.pc + 2;
+                }
+            },
+            0xE => {
+                if self.keypad.keys[xval as usize] {
+                    self.pc = self.pc + 2;
+                }
+            },
+            _ => panic!("Unsupported opcode")
         }
     }
 
     fn category_f(&mut self, x: u8, nn: u8) {
-        if nn == 0x07 {
-            self.regs[x as usize] = self.delay;
-        } else if nn == 0x15 {
-            self.delay = self.regs[x as usize];
-        } else if nn == 0x18 {
-            self.sound = self.regs[x as usize];
-            if self.sound > 0 {
-                self.beep = true;
-            }
-        } else if nn == 0x1E {
-            let addn: (u16, bool) = self.idx.overflowing_add(self.regs[x as usize] as u16);
-            self.idx = addn.0;
-        } else if nn == 0x0A {
-            match self.status {
-                CpuStatus::Running => {
-                    self.status = CpuStatus::WaitForKey;
+        match nn {
+            0x07 => self.regs[x as usize] = self.delay,
+            0x15 => self.delay = self.regs[x as usize],
+            0x18 => {
+                self.sound = self.regs[x as usize];
+                if self.sound > 0 {
+                    self.beep = true;
+                }
+            },
+            0x1E => {
+                let addn: (u16, bool) = self.idx.overflowing_add(self.regs[x as usize] as u16);
+                self.idx = addn.0;
+            },
+            0x0A => {
+                match self.status {
+                    CpuStatus::Running => {
+                        self.status = CpuStatus::WaitForKey;
+                        self.pc = self.pc - 2;
+                        return;
+                    },
+                    _ => ()
+                }
+                if self.keypad.key_pressed {
+                    self.regs[x as usize] = self.keypad.latest_key;
+                    self.status = CpuStatus::Running;
+                } else {
                     self.pc = self.pc - 2;
-                    return;
-                },
-                _ => ()
+                }
+            },
+            0x29 => self.idx = (self.regs[x as usize] as u16) * 5,
+            0x33 => {
+                let xval = self.regs[x as usize];
+                let ones = xval % 10;
+                let tens = (xval / 10) % 10;
+                let hundreds = (xval / 100) % 10;
+                self.mem[self.idx as usize] = hundreds;
+                self.mem[(self.idx + 1) as usize] = tens;
+                self.mem[(self.idx + 2) as usize] = ones;
+            },
+            0x55 => {
+                for number in 0..(x + 1) as usize {
+                    self.mem[(self.idx as usize) + number] = self.regs[number];
+                }
+            },
+            0x65 => {
+                for number in 0..(x + 1) as usize {
+                    self.regs[number] = self.mem[(self.idx as usize) + number];
+                }
             }
-            if self.keypad.key_pressed {
-                self.regs[x as usize] = self.keypad.latest_key;
-                self.status = CpuStatus::Running;
-            } else {
-                self.pc = self.pc - 2;
-            }
-        } else if nn == 0x29 {
-            self.idx = (self.regs[x as usize] as u16) * 5;
-        } else if nn == 0x33 {
-            let xval = self.regs[x as usize];
-            let ones = xval % 10;
-            let tens = (xval / 10) % 10;
-            let hundreds = (xval / 100) % 10;
-            self.mem[self.idx as usize] = hundreds;
-            self.mem[(self.idx + 1) as usize] = tens;
-            self.mem[(self.idx + 2) as usize] = ones;
-        } else if nn == 0x55 {
-            for number in 0..(x + 1) as usize {
-                self.mem[(self.idx as usize) + number] = self.regs[number];
-            }
-        } else if nn == 0x65 {
-            for number in 0..(x + 1) as usize {
-                self.regs[number] = self.mem[(self.idx as usize) + number];
-            }
+            _ => panic!("Unsupported opcode")
         }
     }
 
