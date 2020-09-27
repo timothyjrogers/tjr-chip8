@@ -31,7 +31,6 @@ const FONT_DATA: [u8; 80] = [
 pub enum CpuStatus {
     Running,
     Halted,
-    WaitForKey,
 }
 
 pub struct Cpu {
@@ -49,10 +48,11 @@ pub struct Cpu {
     pub keypad: keypad::Keypad,
     pub beep: bool,
     pub status: CpuStatus,
+    pub wait_for_key: bool,
 }
 
 impl Cpu {
-    pub fn new(ctx: &sdl2::Sdl, fname: &String) -> Cpu {
+    pub fn new(ctx: &sdl2::Sdl, fname: &str) -> Cpu {
         let mut cpu = Cpu {
             mem: [0; 4096],
             regs: [0; 16],
@@ -68,6 +68,7 @@ impl Cpu {
             keypad: keypad::Keypad::new(),
             beep: false,
             status: CpuStatus::Running,
+            wait_for_key: false,
         };
         for number in 0..80 {
             cpu.mem[number] = FONT_DATA[number];
@@ -336,17 +337,14 @@ impl Cpu {
                 self.idx = addn.0;
             },
             0x0A => {
-                match self.status {
-                    CpuStatus::Running => {
-                        self.status = CpuStatus::WaitForKey;
-                        self.pc = self.pc - 2;
-                        return;
-                    },
-                    _ => ()
+                if !self.wait_for_key {
+                    self.pc = self.pc - 2;
+                    self.wait_for_key = true;
+                    return;
                 }
                 if self.keypad.key_pressed {
                     self.regs[x as usize] = self.keypad.latest_key;
-                    self.status = CpuStatus::Running;
+                    self.wait_for_key = false;
                 } else {
                     self.pc = self.pc - 2;
                 }
