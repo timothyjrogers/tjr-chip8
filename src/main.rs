@@ -9,15 +9,9 @@ use std::io;
 use std::io::*;
 mod cpu;
 mod audio;
-#[cfg(debug_addssertions)]
-use console::Term;
 
 fn main() {
-//    #[cfg(debug_addssertions)]
-//    println!("This is a debug build.");
-
-    //User input for clock speed
-    println!("Input clock speed (600 HZ):");
+    println!("Input clock Hz (600):");
     let mut clock_input = String::new();
     io::stdin().read_line(&mut clock_input).expect("Unable to read clock speed input");
     let mut clock_hz: f32 = 600.0;
@@ -27,9 +21,9 @@ fn main() {
             Err(e) => panic!(e)
         }
     }
-    println!("Running with clock speed {} hz", clock_hz);
+    println!("Running with clock speed {} Hz", clock_hz);
     let clock_speed_micros = ((1 as f32 / clock_hz) * 1_000_000 as f32) as u32;
-    //Initialize SDL subsystem
+
     let sdl_context;
     match sdl2::init() {
         Ok(ctx) => sdl_context = ctx,
