@@ -34,21 +34,21 @@ pub enum CpuStatus {
 }
 
 pub struct Cpu {
-    pub mem: [u8; 4096],
-    pub regs: [u8; 16],
-    pub pc: u16,
-    pub idx: u16,
-    pub stack: [u16; 16],
-    pub sp: i8,
-    pub sound: u8,
-    pub delay: u8,
-    pub timer_time: Instant,
-    pub screen: screen::Screen,
-    pub audio: audio::Audio,
-    pub keypad: keypad::Keypad,
-    pub beep: bool,
+    mem: [u8; 4096],
+    regs: [u8; 16],
+    pc: u16,
+    idx: u16,
+    stack: [u16; 16],
+    sp: i8,
+    sound: u8,
+    delay: u8,
+    timer_time: Instant,
+    screen: screen::Screen,
+    audio: audio::Audio,
+    keypad: keypad::Keypad,
+    beep: bool,
     pub status: CpuStatus,
-    pub wait_for_key: bool,
+    wait_for_key: bool,
 }
 
 impl Cpu {
