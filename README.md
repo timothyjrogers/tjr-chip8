@@ -5,7 +5,7 @@ This is a straight forward Chip-8 emulator written in Rust. I am a relatively ne
 To build and run the emulator issue the following command:
 
 ```bash
-cargo run /path/to/rom clock_speed_hz
+cargo run --release
 ```
 Note that you will need to source ROM files from the internet and you must acquire the appropriate SDL2 DLL for your system and place it beside the emulator binary -- see  [rust-sdl2 on Github](https://github.com/Rust-SDL2/rust-sdl2) for more details.
 
@@ -14,8 +14,6 @@ The following crates are imported (per Cargo.toml) for the following purposes:
 
 * sdl2 - SDL2 bindings used to create and draw emulator window, receive keyboard input, output sound
 * rand - Used for random number generation
-* timer - Used in conjunction with chrono to create additional timers for sound/delay implementation
-* chrono - see 'timer'
 
 ## Organization
 This project is split into the following files:
