@@ -29,3 +29,7 @@ This project is split into the following files:
 * screen.rs - The Screen contains data structures and methods for creating the game window and drawing to the screen as part of the DYXN operation.
 * keypad.rs - The Keypad contains data structures and methods for receiving input from the 16-key keypad and checking the keypad state.
 * audio.rs - The Audio module contains data structures and methods for generating the single-tone sound output.
+
+![test screen](docs/screenshots/chip-8-test.PNG)
+
+![pong](docs/screenshots/pong.gif)
