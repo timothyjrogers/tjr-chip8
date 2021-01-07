@@ -1,7 +1,6 @@
 extern crate sdl2;
 use sdl2::event::Event;
 use std::time::{Duration,Instant};
-use std::env;
 use std::fs::read_dir;
 use std::path::Path;
 use std::path::PathBuf;
@@ -16,25 +15,13 @@ fn main() {
     io::stdin().read_line(&mut clock_input).expect("Unable to read clock speed input");
     let mut clock_hz: f32 = 600.0;
     if !clock_input.trim().is_empty() {
-        match clock_input.trim().parse::<f32>() {
-            Ok(v) => clock_hz = v,
-            Err(e) => panic!(e)
-        }
+        clock_hz = clock_input.trim().parse::<f32>().expect("Invalid clock frequency, aborting.");
     }
     println!("Running with clock speed {} Hz", clock_hz);
     let clock_speed_micros = ((1 as f32 / clock_hz) * 1_000_000 as f32) as u32;
 
-    let sdl_context;
-    match sdl2::init() {
-        Ok(ctx) => sdl_context = ctx,
-        Err(e) => panic!(e)
-    }
-    //Initialize SDL Event Pump
-    let mut event_pump;
-    match sdl_context.event_pump() {
-        Ok(pump) => event_pump = pump,
-        Err(e) => panic!(e)
-    }
+    let sdl_context = sdl2::init().unwrap();
+    let mut event_pump = sdl_context.event_pump().unwrap();
 
     //Allow user rom choice
     let mut rom_dir;
@@ -44,7 +31,7 @@ fn main() {
             rom_dir.pop();
             rom_dir.push("roms");
         },
-        Err(e) => panic!("Unable to read ROM directory")
+        Err(e) => panic!("Unable to read default ROM directory")
     }
     println!("ROMs location ({}):", rom_dir.to_str().unwrap());
     let mut romdir_input = String::new();
@@ -72,11 +59,8 @@ fn main() {
     }
     let mut choice = String::new();
     io::stdin().read_line(&mut choice).expect("Unable to read choice");
-    let mut choice_int: usize;
-    match choice.trim().parse::<usize>() {
-        Ok(v) => choice_int = v,
-        Err(e) => panic!(e)
-    }
+    let mut choice_int: usize = choice.trim().parse::<usize>().expect("Invalid ROM choice, enter an integer from the list. Aborting.");
+    if choice_int >= roms.len() { panic!("Invalid ROM choice, enter an integer from the list.") };
     let rom_path = Path::new(rom_dir_str).join(&roms[choice_int]);
 
     println!("You chose: {}", &roms[choice_int]);
