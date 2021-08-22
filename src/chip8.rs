@@ -1,115 +1,60 @@
-#[path = "screen.rs"]
-mod screen;
-#[path = "audio.rs"]
-mod audio;
-#[path = "keypad.rs"]
-mod keypad;
-extern crate sdl2;
 use rand::Rng;
-use std::time::Instant;
 
-const MICROS_60_HZ: u128 = 16666;
-const FONT_DATA: [u8; 80] = [
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-];
+mod constants;
 
-pub enum CpuStatus {
-    Running,
-    Halted,
-}
-
-pub struct Cpu {
-    mem: [u8; 4096],
-    regs: [u8; 16],
+pub struct Chip8 {
+    mem: [u8; constants::MEMORY_SIZE],
+    regs: [u8; constants::NUM_REGISTERS],
     pc: u16,
     idx: u16,
     stack: [u16; 16],
     sp: i8,
-    sound: u8,
+    pub sound: u8,
     delay: u8,
-    timer_time: Instant,
-    screen: screen::Screen,
-    audio: audio::Audio,
-    keypad: keypad::Keypad,
-    beep: bool,
+    keyboard: [bool; 16],
+    pub screen: [bool; (constants::SCREEN_WIDTH * constants::SCREEN_HEIGHT) as usize],
+    pub redraw: bool,
     pub status: CpuStatus,
-    wait_for_key: bool,
 }
 
-impl Cpu {
-    pub fn new(ctx: &sdl2::Sdl, fname: &str) -> Cpu {
-        let mut cpu = Cpu {
-            mem: [0; 4096],
-            regs: [0; 16],
-            pc: 0x200,
+pub enum CpuStatus {
+    Running,
+    AwaitingKeyPress,
+}
+
+impl Chip8 {
+    pub fn new(rom_path: String) -> Self {
+        let mut cpu = Self {
+            mem: [0; constants::MEMORY_SIZE],
+            regs: [0; constants::NUM_REGISTERS],
+            pc: constants::PC_INITIAL,
             idx: 0,
             stack: [0; 16],
             sp: -1,
             sound: 0,
             delay: 0,
-            timer_time: Instant::now(),
-            screen: screen::Screen::new(ctx),
-            audio: audio::Audio::new(ctx),
-            keypad: keypad::Keypad::new(),
-            beep: false,
+            keyboard: [false; 16],
+            screen: [false; (constants::SCREEN_WIDTH * constants::SCREEN_HEIGHT) as usize],
+            redraw: false,
             status: CpuStatus::Running,
-            wait_for_key: false,
         };
         for number in 0..80 {
-            cpu.mem[number] = FONT_DATA[number];
+            cpu.mem[number] = constants::FONT_DATA[number];
         }
-        let rom = std::fs::read(fname).unwrap();
+        let rom = std::fs::read(rom_path).unwrap();
         for (pos, e) in rom.iter().enumerate() {
             cpu.mem[cpu.pc as usize + pos] = *e;
         }
         return cpu;
     }
 
-    pub fn halt(&mut self) {
-        self.status = CpuStatus::Halted;
-    }
-
     pub fn decrement_counters(&mut self) {
-        if self.delay > 0 {
-            self.delay = self.delay - 1;
-        }
-        if self.sound > 0 {
-            self.sound = self.sound - 1;
-        }
-        if self.sound == 0 {
-            self.beep = false;
-        }
+        if self.delay > 0 { self.delay = self.delay - 1 }
+        if self.sound > 0 { self.sound = self.sound - 1 }
     }
 
-    pub fn tick(&mut self, kb_state: sdl2::keyboard::KeyboardState) {
-        let now = Instant::now();
-        if now.duration_since(self.timer_time).as_micros() >= MICROS_60_HZ {
-            self.timer_time = now;
-            self.decrement_counters();
-        }
-        //Set audio device based on sound timer
-        if self.sound > 0 {
-            self.audio.beep(audio::AudioState::On);
-        } else {
-            self.audio.beep(audio::AudioState::Off);
-        }
-        //Process keyboard input
-        self.keypad.update_pressed_keys(kb_state);
+    pub fn tick(&mut self, kb_state: [bool; 16]) {
+        self.keyboard = kb_state;
         //fetch
         let instruction = Self::fetch(self);
         //decode
@@ -159,7 +104,7 @@ impl Cpu {
 
     fn category_0(&mut self, n: u8) {
         match n {
-            0x0 => self.screen.clear_screen(),
+            0x0 => self.screen = [false; (constants::SCREEN_WIDTH * constants::SCREEN_HEIGHT) as usize],
             0xE => {
                 self.pc = self.stack[self.sp as usize];
                 self.sp = self.sp - 1;
@@ -280,41 +225,41 @@ impl Cpu {
     }
 
     fn category_d(&mut self, x: u8, y: u8, n: u8) {
-        let xcoord: usize = (self.regs[x as usize] as usize) % (screen::SCREEN_WIDTH_BASE);
-        let ycoord: usize = (self.regs[y as usize] as usize) % (screen::SCREEN_HEIGHT_BASE);
+        let xcoord: usize = (self.regs[x as usize] as usize) % (constants::SCREEN_WIDTH as usize);
+        let ycoord: usize = (self.regs[y as usize] as usize) % (constants::SCREEN_HEIGHT as usize);
         self.regs[0xF] = 0;
         for number in 0..(n as usize) {
-            if ycoord + number >= screen::SCREEN_HEIGHT_BASE {
+            if ycoord + number >= constants::SCREEN_HEIGHT as usize {
                 continue;
             }
             let line = self.mem[(self.idx as usize) + number];
             for x in 0..8 {
-                let pix_idx = xcoord + x + ((ycoord + number)* screen::SCREEN_WIDTH_BASE);
-                if (xcoord + x) >= screen::SCREEN_WIDTH_BASE {
+                let pix_idx = xcoord + x + ((ycoord + number)* constants::SCREEN_WIDTH as usize);
+                if (xcoord + x) >= constants::SCREEN_WIDTH as usize {
                     continue;
                 }
                 let sprite_pixel = ((line as usize) >> (7 - x)) & 0x1;
-                let cur_pixel = self.screen.get_pixel(pix_idx);
+                let cur_pixel = self.screen[pix_idx];
                 let new_pixel = cur_pixel ^ (sprite_pixel != 0);
                 if cur_pixel == true && new_pixel == false {
                     self.regs[0xF] = 1;
                 }
-                self.screen.set_pixel(pix_idx, new_pixel);
+                self.screen[pix_idx] = new_pixel;
             }
         }
-        self.screen.draw();
+        self.redraw = true;
     }
 
     fn category_e(&mut self, x: u8, n: u8) {
         let xval = self.regs[x as usize];
         match n {
             0x1 => {
-                if !self.keypad.keys[xval as usize] {
+                if !self.keyboard[xval as usize] {
                     self.pc = self.pc + 2;
                 }
             },
             0xE => {
-                if self.keypad.keys[xval as usize] {
+                if self.keyboard[xval as usize] {
                     self.pc = self.pc + 2;
                 }
             },
@@ -328,26 +273,13 @@ impl Cpu {
             0x15 => self.delay = self.regs[x as usize],
             0x18 => {
                 self.sound = self.regs[x as usize];
-                if self.sound > 0 {
-                    self.beep = true;
-                }
             },
             0x1E => {
                 let addn: (u16, bool) = self.idx.overflowing_add(self.regs[x as usize] as u16);
                 self.idx = addn.0;
             },
             0x0A => {
-                if !self.wait_for_key {
-                    self.pc = self.pc - 2;
-                    self.wait_for_key = true;
-                    return;
-                }
-                if self.keypad.key_pressed {
-                    self.regs[x as usize] = self.keypad.latest_key;
-                    self.wait_for_key = false;
-                } else {
-                    self.pc = self.pc - 2;
-                }
+                self.status = CpuStatus::AwaitingKeyPress;
             },
             0x29 => self.idx = (self.regs[x as usize] as u16) * 5,
             0x33 => {
@@ -372,5 +304,4 @@ impl Cpu {
             _ => panic!("Unsupported opcode")
         }
     }
-
 }

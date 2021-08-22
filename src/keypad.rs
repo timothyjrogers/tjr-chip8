@@ -1,33 +1,34 @@
-extern crate sdl2;
-use sdl2::keyboard::Scancode;
-use std::collections::HashSet;
+use std::collections::HashMap;
+use iced::keyboard as iced_keyboard;
 
-pub const SCANCODE_MAP: [Scancode; 16] = [Scancode::X, Scancode::Num1, Scancode::Num2, Scancode::Num3, Scancode::Q, Scancode::W, Scancode::E, Scancode::A, Scancode::S, Scancode::D, Scancode::Z, Scancode::C, Scancode::Num4, Scancode::R, Scancode::F, Scancode::V];
-
-pub struct Keypad {
+pub struct Keyboard {
     pub keys: [bool; 16],
-    pub key_pressed: bool,
-    pub latest_key: u8,
+    pub key_map: HashMap<iced_keyboard::KeyCode, usize>
 }
 
-impl Keypad {
-    pub fn new() -> Keypad {
-        return Keypad {
+impl Keyboard {
+    pub fn new() -> Self {
+        let key_map: HashMap<iced_keyboard::KeyCode, usize> = [
+            (iced_keyboard::KeyCode::Key1, 0x1),
+            (iced_keyboard::KeyCode::Key2, 0x2),
+            (iced_keyboard::KeyCode::Key3, 0x3),
+            (iced_keyboard::KeyCode::Key4, 0xC),
+            (iced_keyboard::KeyCode::Q, 0x4),
+            (iced_keyboard::KeyCode::W, 0x5),
+            (iced_keyboard::KeyCode::E, 0x6),
+            (iced_keyboard::KeyCode::R, 0xD),
+            (iced_keyboard::KeyCode::A, 0x7),
+            (iced_keyboard::KeyCode::S, 0x8),
+            (iced_keyboard::KeyCode::D, 0x9),
+            (iced_keyboard::KeyCode::F, 0xE),
+            (iced_keyboard::KeyCode::Z, 0xA),
+            (iced_keyboard::KeyCode::X, 0x0),
+            (iced_keyboard::KeyCode::C, 0xB),
+            (iced_keyboard::KeyCode::V, 0xF)]
+            .iter().cloned().collect();
+        Self {
             keys: [false; 16],
-            key_pressed: false,
-            latest_key: 0,
-        };
-    }
-
-    pub fn update_pressed_keys(&mut self, state: sdl2::keyboard::KeyboardState) {
-        let pressed_keys: HashSet<Scancode> = state.pressed_scancodes().collect();
-        for number in 0..16 {
-            let pressed = pressed_keys.contains(&SCANCODE_MAP[number]);
-            if !self.keys[number] && pressed {
-                self.key_pressed = true;
-                self.latest_key = number as u8;
-            }
-            self.keys[number] = pressed;
+            key_map,
         }
     }
 }
