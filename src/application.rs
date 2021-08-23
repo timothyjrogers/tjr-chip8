@@ -1,5 +1,5 @@
-use iced::{button, executor, keyboard, time,
-           Application,Clipboard, Command, Element, Subscription};
+use iced::{button, executor, keyboard, slider, time,
+           Application,Clipboard, Command, Element, Slider, Subscription};
 use rodio::{
     source::{SineWave, Source},
     Sink,
@@ -18,13 +18,10 @@ const APPLICATION_TITLE: &str = "CHIP-8";
 //ICED STATE
 pub struct Chip8Emulator {
     rom_name: Option<String>,
+    clock_speed: u32,
     gui: gui::Gui,
     keyboard: keypad::Keyboard,
     chip8: Option<chip8::Chip8>,
-}
-
-struct ApplicationSettings {
-    clock_speed: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +29,13 @@ pub enum Message {
     IcedEvent(iced_native::Event),
     Goto(gui::PageModel),
     ChooseRom,
+    ClockSpeedChanged(i32),
+    BgRedChanged(i32),
+    BgGreenChanged(i32),
+    BgBlueChanged(i32),
+    FgRedChanged(i32),
+    FgGreenChanged(i32),
+    FgBlueChanged(i32),
     CpuClockTick,
     TimerClockTick,
 }
@@ -40,6 +44,7 @@ impl Default for Chip8Emulator {
     fn default() -> Self {
         Self {
             rom_name: None,
+            clock_speed: DEFAULT_CLOCK_SPEED,
             gui: gui::Gui::new(),
             keyboard: keypad::Keyboard::new(),
             chip8: None,
@@ -65,8 +70,8 @@ impl Default for Chip8Emulator {
 
     fn view(&mut self) -> Element<Message> {
         match &mut self.gui.current_page {
-            gui::PageModel::MainMenu { .. } => self.gui.make(),
-            gui::PageModel::EmulationScreen => self.gui.make(),
+            gui::PageModel::MainMenu { .. } => self.gui.make(self.clock_speed),
+            gui::PageModel::EmulationScreen => self.gui.make(self.clock_speed),
         }
     }
 
@@ -98,6 +103,20 @@ impl Default for Chip8Emulator {
                 match p {
                     gui::PageModel::MainMenu { .. } => {
                         self.gui.current_page = gui::PageModel::MainMenu {
+                            clock_speed_state: slider::State::new(),
+                            clock_speed_value: self.clock_speed,
+                            bg_red_state: slider::State::new(),
+                            bg_red_value: self.gui.screen.bg_red,
+                            bg_green_state: slider::State::new(),
+                            bg_green_value: self.gui.screen.bg_green,
+                            bg_blue_state: slider::State::new(),
+                            bg_blue_value: self.gui.screen.bg_blue,
+                            fg_red_state: slider::State::new(),
+                            fg_red_value: self.gui.screen.bg_red,
+                            fg_green_state: slider::State::new(),
+                            fg_green_value: self.gui.screen.bg_green,
+                            fg_blue_state: slider::State::new(),
+                            fg_blue_value: self.gui.screen.bg_blue,
                             choose_rom_button: button::State::new(),
                             launch_button: button::State::new()
                         };
@@ -113,19 +132,17 @@ impl Default for Chip8Emulator {
                         keyboard::Event::KeyPressed { key_code, .. } => {
                             match self.keyboard.key_map.get(&key_code) {
                                 Some(k) => {
-                                    println!("{} pressed", k);
                                     self.keyboard.keys[*k] = true;
                                 },
-                                _ => println!("Key not used by Chip8")
+                                _ => ()
                             }
                         },
                         keyboard::Event::KeyReleased { key_code, .. } => {
                             match self.keyboard.key_map.get(&key_code) {
                                 Some(k) => {
-                                    println!("{} released", k);
                                     self.keyboard.keys[*k] = false;
                                 },
-                                _ => println!("Key not used by Chip8")
+                                _ => ()
                             }
                         },
                         _ => ()
@@ -172,6 +189,13 @@ impl Default for Chip8Emulator {
                     None => ()
                 }
             },
+            Message::ClockSpeedChanged(val) => self.clock_speed = val as u32,
+            Message::BgRedChanged(val) => self.gui.screen.bg_red = val as u32,
+            Message::BgGreenChanged(val) => self.gui.screen.bg_green = val as u32,
+            Message::BgBlueChanged(val) => self.gui.screen.bg_blue = val as u32,
+            Message::FgRedChanged(val) => self.gui.screen.fg_red = val as u32,
+            Message::FgGreenChanged(val) => self.gui.screen.fg_green = val as u32,
+            Message::FgBlueChanged(val) => self.gui.screen.fg_blue = val as u32,
         }
         Command::none()
     }
@@ -180,7 +204,7 @@ impl Default for Chip8Emulator {
         let runtime_events = iced_native::subscription::events().map(Message::IcedEvent);
 
         let ticks = time::every(Duration::from_millis(
-            1000 / DEFAULT_CLOCK_SPEED as u64,
+            1000 / self.clock_speed as u64,
         )).map(|_| -> Message { Message::CpuClockTick });
 
         let timers = time::every(Duration::from_millis(

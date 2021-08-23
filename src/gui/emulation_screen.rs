@@ -1,4 +1,4 @@
-use iced::{Align, Canvas, Column, Container, Element, Length, Text};
+use iced::{Align, Canvas, Color, Column, Container, Element, Length, Text};
 use crate::application::Message;
 use super::{Screen};
 
