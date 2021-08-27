@@ -1,22 +1,22 @@
-use iced::{button, slider, Align, Button, Color, Column, Container, Element, HorizontalAlignment, Length, Row, Rule, Slider, Text, VerticalAlignment};
+use iced::{button, slider, Align, Button, Color, Column, Container, Element, Length, Row, Rule, Slider, Text, VerticalAlignment};
 use crate::application::Message;
 use super::PageModel;
 
 pub fn draw<'a>(rom_name: String,
                 clock_speed_slider: &'a mut slider::State,
-                mut clock_speed_value: i32,
+                clock_speed_value: i32,
                 bg_red_slider: &'a mut slider::State,
-                mut bg_red_value: i32,
+                bg_red_value: i32,
                 bg_green_slider: &'a mut slider::State,
-                mut bg_green_value: i32,
+                bg_green_value: i32,
                 bg_blue_slider: &'a mut slider::State,
-                mut bg_blue_value: i32,
+                bg_blue_value: i32,
                 fg_red_slider: &'a mut slider::State,
-                mut fg_red_value: i32,
+                fg_red_value: i32,
                 fg_green_slider: &'a mut slider::State,
-                mut fg_green_value: i32,
+                fg_green_value: i32,
                 fg_blue_slider: &'a mut slider::State,
-                mut fg_blue_value: i32,
+                fg_blue_value: i32,
                 choose_rom_button: &'a mut button::State,
                 launch_button: &'a mut button::State) -> Element<'a , Message> {
     let content = Column::new()

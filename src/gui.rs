@@ -1,21 +1,14 @@
 use iced::{button, slider,
            canvas::{Cache, Cursor, Fill, Geometry, Program},
-           Color, Element, Point, Rectangle, Size, Slider};
-use crate::application::Message;
+           Color, Element, Point, Rectangle, Size};
+use crate::application::{Chip8EmulatorSettings, Message};
 
 mod main_menu;
 mod emulation_screen;
 
 pub struct Gui {
     pub current_page: PageModel,
-    pub rom_name: Option<String>,
     pub screen: Screen,
-}
-
-struct GuiSettings {
-    rom_name: String,
-    bg_color: Color,
-    fg_color: Color,
 }
 
 pub struct Screen {
@@ -73,7 +66,6 @@ impl Gui {
                 choose_rom_button: button::State::new(),
                 launch_button: button::State::new(),
             },
-            rom_name: None,
             screen: Screen {
                 pixels: [false; 2048],
                 bg_red: 0,
@@ -87,19 +79,13 @@ impl Gui {
         }
     }
 
-    pub fn make(&mut self, mut clock_speed: u32) -> Element<Message> {
+    pub fn make(&mut self, settings: &Chip8EmulatorSettings) -> Element<Message> {
         match &mut self.current_page {
-            PageModel::MainMenu { clock_speed_state, clock_speed_value, bg_red_state, bg_red_value, bg_green_state, bg_green_value, bg_blue_state, bg_blue_value, fg_red_state, fg_red_value, fg_green_state, fg_green_value, fg_blue_state, fg_blue_value, choose_rom_button, launch_button } => {
-                match & self.rom_name {
-                    Some(n) => main_menu::draw(n.to_string(), clock_speed_state, clock_speed as i32, bg_red_state, self.screen.bg_red as i32, bg_green_state, self.screen.bg_green as i32, bg_blue_state, self.screen.bg_blue as i32, fg_red_state, self.screen.fg_red as i32, fg_green_state, self.screen.fg_green as i32, fg_blue_state, self.screen.fg_blue as i32, choose_rom_button, launch_button),
-                    None => main_menu::draw("No ROM chosen".to_string(), clock_speed_state, clock_speed as i32, bg_red_state, self.screen.bg_red as i32, bg_green_state, self.screen.bg_green as i32, bg_blue_state, self.screen.bg_blue as i32, fg_red_state, self.screen.fg_red as i32, fg_green_state, self.screen.fg_green as i32, fg_blue_state, self.screen.fg_blue as i32, choose_rom_button, launch_button)
-                }
+            PageModel::MainMenu { clock_speed_state, clock_speed_value: _, bg_red_state, bg_red_value: _, bg_green_state, bg_green_value: _, bg_blue_state, bg_blue_value: _, fg_red_state, fg_red_value: _, fg_green_state, fg_green_value: _, fg_blue_state, fg_blue_value: _, choose_rom_button, launch_button } => {
+                main_menu::draw(settings.rom_name.to_string() , clock_speed_state, settings.clock_speed as i32, bg_red_state, self.screen.bg_red as i32, bg_green_state, self.screen.bg_green as i32, bg_blue_state, self.screen.bg_blue as i32, fg_red_state, self.screen.fg_red as i32, fg_green_state, self.screen.fg_green as i32, fg_blue_state, self.screen.fg_blue as i32, choose_rom_button, launch_button)
             },
             PageModel::EmulationScreen => {
-                match &self.rom_name {
-                    Some(x) => emulation_screen::draw(&mut self.screen, String::from(x)),
-                    None => emulation_screen::draw(&mut self.screen, String::from(""))
-                }
+                emulation_screen::draw(&mut self.screen, settings.rom_name.to_string())
             }
         }
     }

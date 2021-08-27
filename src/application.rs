@@ -1,5 +1,5 @@
 use iced::{button, executor, keyboard, slider, time,
-           Application,Clipboard, Command, Element, Slider, Subscription};
+           Application,Clipboard, Command, Element, Subscription};
 use rodio::{
     source::{SineWave, Source},
     Sink,
@@ -17,11 +17,15 @@ const APPLICATION_TITLE: &str = "CHIP-8";
 
 //ICED STATE
 pub struct Chip8Emulator {
-    rom_name: Option<String>,
-    clock_speed: u32,
     gui: gui::Gui,
     keyboard: keypad::Keyboard,
     chip8: Option<chip8::Chip8>,
+    settings: Chip8EmulatorSettings,
+}
+
+pub struct Chip8EmulatorSettings {
+    pub rom_name: String,
+    pub clock_speed: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -40,14 +44,22 @@ pub enum Message {
     TimerClockTick,
 }
 
+impl Chip8EmulatorSettings {
+    pub fn new() -> Self {
+        Self {
+            rom_name: String::from(""),
+            clock_speed: DEFAULT_CLOCK_SPEED,
+        }
+    }
+}
+
 impl Default for Chip8Emulator {
     fn default() -> Self {
         Self {
-            rom_name: None,
-            clock_speed: DEFAULT_CLOCK_SPEED,
             gui: gui::Gui::new(),
             keyboard: keypad::Keyboard::new(),
             chip8: None,
+            settings: Chip8EmulatorSettings::new(),
         }
     }
 }
@@ -62,16 +74,17 @@ impl Default for Chip8Emulator {
     }
 
     fn title(&self) -> String {
-        match &self.rom_name {
-            Some(n) => format!("{} - {}", APPLICATION_TITLE, n),
-            None => String::from(APPLICATION_TITLE)
+        if !self.settings.rom_name.is_empty() {
+            format!("{} - {}", APPLICATION_TITLE, &self.settings.rom_name)
+        } else {
+            String::from(APPLICATION_TITLE)
         }
     }
 
     fn view(&mut self) -> Element<Message> {
         match &mut self.gui.current_page {
-            gui::PageModel::MainMenu { .. } => self.gui.make(self.clock_speed),
-            gui::PageModel::EmulationScreen => self.gui.make(self.clock_speed),
+            gui::PageModel::MainMenu { .. } => self.gui.make(&self.settings),
+            gui::PageModel::EmulationScreen => self.gui.make(&self.settings),
         }
     }
 
@@ -87,8 +100,8 @@ impl Default for Chip8Emulator {
                                 self.chip8 = Some(chip8::Chip8::new(rom_path));
                                 match file_path.file_name() {
                                     Some(x) => {
-                                        self.rom_name = Some(x.to_os_string().into_string().unwrap());
-                                        self.gui.rom_name = Some(x.to_os_string().into_string().unwrap());
+                                        self.settings.rom_name = x.to_os_string().into_string().unwrap();
+                                        //self.gui.rom_name = Some(x.to_os_string().into_string().unwrap());
                                     },
                                     None => ()
                                 };
@@ -104,7 +117,7 @@ impl Default for Chip8Emulator {
                     gui::PageModel::MainMenu { .. } => {
                         self.gui.current_page = gui::PageModel::MainMenu {
                             clock_speed_state: slider::State::new(),
-                            clock_speed_value: self.clock_speed,
+                            clock_speed_value: self.settings.clock_speed,
                             bg_red_state: slider::State::new(),
                             bg_red_value: self.gui.screen.bg_red,
                             bg_green_state: slider::State::new(),
@@ -189,7 +202,7 @@ impl Default for Chip8Emulator {
                     None => ()
                 }
             },
-            Message::ClockSpeedChanged(val) => self.clock_speed = val as u32,
+            Message::ClockSpeedChanged(val) => self.settings.clock_speed = val as u32,
             Message::BgRedChanged(val) => self.gui.screen.bg_red = val as u32,
             Message::BgGreenChanged(val) => self.gui.screen.bg_green = val as u32,
             Message::BgBlueChanged(val) => self.gui.screen.bg_blue = val as u32,
@@ -204,7 +217,7 @@ impl Default for Chip8Emulator {
         let runtime_events = iced_native::subscription::events().map(Message::IcedEvent);
 
         let ticks = time::every(Duration::from_millis(
-            1000 / self.clock_speed as u64,
+            1000 / self.settings.clock_speed as u64,
         )).map(|_| -> Message { Message::CpuClockTick });
 
         let timers = time::every(Duration::from_millis(
